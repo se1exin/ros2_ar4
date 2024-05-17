@@ -3,7 +3,7 @@
 # generic ros libraries
 import rclpy
 from rclpy.node import Node
-from rclpy.time import Time
+from rclpy.time import Time, Duration
 import time
 
 # moveit python library
@@ -20,27 +20,35 @@ class ArMoveItTest(Node):
 
     def __init__(self, moveit: MoveItPy):
         super().__init__("ar_moveit_test")
+        self.target_frame = self.declare_parameter(
+          'target_frame', 'base_link').get_parameter_value().string_value
+
         self.logger = self.get_logger()
         self.moveit = moveit
         self.arm = self.moveit.get_planning_component("ar_manipulator")
         self.gripper = self.moveit.get_planning_component("ar_gripper")
         
-        self.robot_model = self.moveit.get_robot_model()
-        self.robot_state = RobotState(self.robot_model)
+        
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
 
         self.logger.info("SLEEPING")
         time.sleep(5)
         self.logger.info("RUNNING TEST MOVE")
         
         self.move_home()
-        self.open_gripper()
-        self.test_random_move()
-        self.close_gripper()
+        #self.open_gripper()
+        #self.test_random_move()
+        #self.close_gripper()
+        time.sleep(2)
+
+        self.home_pose = self.get_current_pose()
         
-        self.test_pose_move()
+        while True:
+            time.sleep(0.5)
+            self.test_pose_move()
 
     def open_gripper(self):
         self.logger.info("Open Gripper")
@@ -78,22 +86,20 @@ class ArMoveItTest(Node):
     
     def test_pose_move(self):
         self.logger.info("Move To Pose")
-        self.arm.set_start_state_to_current_state()
-
-        # pose = self.robot_state.get_pose("link_6")
-        # transform = self.tf_buffer.lookup_transform(target_frame="link_6", source_frame="base_link", time=Time())
-        # transformed_pose = do_transform_pose(pose, transform)
-        # transformed_pose.position.z += 0.05
         
+        pose = self.get_current_pose()
+        # pose.position.x += 0.05
+        # pose.position.z += 0.05
+
+        # pose = self.home_pose
+        pose.position.x += 0.05
+        pose.position.z += 0.05
+
+        self.logger.info(f'{pose}')
+
         pose_goal = PoseStamped()
         pose_goal.header.frame_id = "base_link"
-        pose_goal.pose.orientation.w = -1.0
-        pose_goal.pose.orientation.y = -1.0
-        pose_goal.pose.orientation.z = -1.0
-        
-        pose_goal.pose.position.x = 0.24
-        pose_goal.pose.position.y = -0.25
-        pose_goal.pose.position.z = 0.5
+        pose_goal.pose = pose
 
         # pose_goal.pose = self.home_pose
 
@@ -101,6 +107,12 @@ class ArMoveItTest(Node):
 
         # plan to goal
         self.plan_and_execute(self.arm)
+
+    def get_current_pose(self):
+        robot_model = self.moveit.get_robot_model()
+        robot_state = RobotState(robot_model)
+        # robot_state.update()  # Seems to make things worse..
+        return robot_state.get_pose("link_6")
 
     def plan_and_execute(self, planning_component):
         """Helper function to plan and execute a motion."""
