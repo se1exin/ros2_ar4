@@ -25,6 +25,8 @@ class ArMoveItTest(Node):
         self.arm = self.moveit.get_planning_component("ar_manipulator")
         self.gripper = self.moveit.get_planning_component("ar_gripper")
         
+        self.robot_model = self.moveit.get_robot_model()
+        self.robot_state = RobotState(self.robot_model)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -34,14 +36,10 @@ class ArMoveItTest(Node):
         self.logger.info("RUNNING TEST MOVE")
         
         self.move_home()
-
-        self.robot_model = self.moveit.get_robot_model()
-        self.robot_state = RobotState(self.robot_model)
-        self.home_pose = self.robot_state.get_pose("link_6")
-        #self.logger.info(self.home_pose.orientation)
-        #self.logger.info(self.home_pose.position)
-        #self.test_random_move()
-
+        self.open_gripper()
+        self.test_random_move()
+        self.close_gripper()
+        
         self.test_pose_move()
 
     def open_gripper(self):
