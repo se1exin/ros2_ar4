@@ -6,3 +6,4 @@ float64 rotate_y
 float64 rotate_z
 string gripper_state
 string position_name
+string spoken_command

@@ -11,7 +11,7 @@ planning_pipelines:
   pipeline_names: ["ompl"]
 
 plan_request_params:
-  planning_attempts: 1
+  planning_attempts: 3
   planning_pipeline: ompl
   planner_id: "TRRTkConfigDefault"
   planning_time: 3.0

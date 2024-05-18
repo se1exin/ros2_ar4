@@ -31,10 +31,17 @@ class ArWhisperMoveIt(Node):
             '/ar_whisper_commands',
             self.listener_callback,
             10)
+        
+        self.last_pose = None
+        self.is_running_command = False
 
     def listener_callback(self, msg: ARWhisperCommands):
-        self.logger.info(f"GOT MSG {msg}")
-
+        self._logger.info(f"GOT MSG {msg}")
+        if self.is_running_command:
+            self._logger.info(f"Already running command.")
+            return
+        
+        self.is_running_command = True
         for command in msg.commands:
             if command.gripper_state == "open":
                 self.open_gripper()
@@ -42,9 +49,13 @@ class ArWhisperMoveIt(Node):
                 self.close_gripper()
 
             if command.position_name == "home":
-                self.move_home()
+                self.move_to_configuration("home")
+            elif command.position_name == "upright":
+                self.move_to_configuration("upright")
             else:
               self.pose_move(command)
+        
+        self.is_running_command = False
 
     def open_gripper(self):
         self.logger.info("Open Gripper")
@@ -58,15 +69,21 @@ class ArWhisperMoveIt(Node):
         self.gripper.set_goal_state(configuration_name="closed")
         self.plan_and_execute(self.gripper)
 
-    def move_home(self):
-        self.logger.info("Move Home")
+    def move_to_configuration(self, config_name):
+        self.logger.info(f"Move to config {config_name}")
         self.arm.set_start_state_to_current_state()
-        self.arm.set_goal_state(configuration_name="home")
+        self.arm.set_goal_state(configuration_name=config_name)
         self.plan_and_execute(self.arm)
+        self.last_pose = self.get_current_pose()
 
     def pose_move(self, command: ARWhisperCommand):
         self.logger.info(f"Move To Pose: {command}")
-        pose = self.get_current_pose()
+        pose = self.last_pose
+        
+        if pose is None:
+            # get_current_pose() is flaky so we only query it if we don't have a 
+            # successful moveit move yet. Otherwise, we reuse the last pose that was successful
+            pose = self.get_current_pose()
 
         pose.position.x += command.translate_x
         pose.position.y += command.translate_y
@@ -100,7 +117,7 @@ class ArWhisperMoveIt(Node):
 
         # pose_goal.pose = self.home_pose
         self.arm.set_start_state_to_current_state()
-        self.arm.set_goal_state(pose_stamped_msg=pose_goal, pose_link="link_6")
+        self.arm.set_goal_state(pose_stamped_msg=pose_goal, pose_link="gripper_base_link")
 
         # plan to goal
         attempt = 0
@@ -109,14 +126,17 @@ class ArWhisperMoveIt(Node):
             attempt += 1
             result = self.plan_and_execute(self.arm)
             if result:
+                self.last_pose = pose
                 return
+            else:
+                self.last_pose = None
     
 
     def get_current_pose(self):
         robot_model = self.moveit.get_robot_model()
         robot_state = RobotState(robot_model)
         # robot_state.update()  # Seems to make things worse..
-        return robot_state.get_pose("link_6")
+        return robot_state.get_pose("gripper_base_link")
 
     def plan_and_execute(self, planning_component):
         """Helper function to plan and execute a motion."""

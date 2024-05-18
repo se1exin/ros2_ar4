@@ -40,6 +40,7 @@ class ArMoveItTest(Node):
         self.logger.info("SLEEPING")
         time.sleep(2)
         self.logger.info("RUNNING TEST MOVE")
+        self.last_pose = None
         
         self.move_home()
         #self.open_gripper()
@@ -49,6 +50,7 @@ class ArMoveItTest(Node):
 
         self.home_pose = self.get_current_pose()
         self.logger.info(f'{self.home_pose}')
+        
         
         #return
         while True:
@@ -112,7 +114,12 @@ class ArMoveItTest(Node):
     def test_pose_move(self):
         self.logger.info("Move To Pose")
         self.arm.set_start_state_to_current_state()
-        pose = self.get_current_pose()
+        pose = self.last_pose
+        if pose is None:
+            # get_current_pose() is flaky so we only query it if we don't have a 
+            # successful moveit move yet. Otherwise, we reuse the last pose that was successful
+            pose = self.get_current_pose()
+        self.logger.info(f"Current pose: {pose}")
 
         quat = [
             pose.orientation.w,
@@ -124,9 +131,9 @@ class ArMoveItTest(Node):
         # RVIZ Colors: red: x, green: y blue: z 
         x, y, z = transforms3d.euler.quat2euler(quat)
         self.logger.info(f'euler: {x}, {y}, {z}')
-        x += 0.5
-        # y += 0.1
-        # z += 0.1
+        #x += 0.2
+        # y += 0.2
+        z += 0.1
 
         new_quat = transforms3d.euler.euler2quat(x, y, z)
 
@@ -135,9 +142,14 @@ class ArMoveItTest(Node):
         pose.orientation.y = new_quat[2]
         pose.orientation.z = new_quat[3]
 
+        #pose.orientation.w = 1.0
+        # pose.orientation.x = new_quat[1]
+        # pose.orientation.y = 0.8
+        # pose.orientation.z += 0.1
+
         # pose.position.x += 0.05
-        pose.position.z += 0.05
-        #pose.position.y += 0.05
+        # pose.position.z += 0.05
+        # pose.position.y += 0.05
 
         # pose = self.home_pose
         # pose.position.x += 0.05
@@ -160,7 +172,10 @@ class ArMoveItTest(Node):
             attempt += 1
             result = self.plan_and_execute(self.arm)
             if result:
+                self.last_pose = pose
                 return
+            else:
+                self.last_pose = None
     
     def get_current_transform(self):
         from_frame_rel = self.target_frame

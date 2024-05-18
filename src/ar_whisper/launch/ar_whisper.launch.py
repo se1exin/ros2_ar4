@@ -147,6 +147,7 @@ def generate_launch_description():
     ar_whisper_commander_node = Node(
         package="ar_whisper",
         executable="ar_whisper_commander",
+        output="screen",
     )
 
     
