@@ -1,0 +1,8 @@
+float64 translate_x
+float64 translate_y
+float64 translate_z
+float64 rotate_x
+float64 rotate_y
+float64 rotate_z
+string gripper_state
+string position_name

@@ -2,3 +2,4 @@ numpy==1.26.4
 openai-whisper==20231117
 scipy==1.13.0
 sounddevice==0.4.6
+openai==1.30.1

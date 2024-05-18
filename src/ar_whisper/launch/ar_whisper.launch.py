@@ -124,7 +124,7 @@ def generate_launch_description():
     params_dict.update(ompl_planning_pipeline_config)
     params_dict.update(
         load_yaml(
-            "ar_testing",
+            "ar_whisper",
             os.path.join("config", "moveit_py_parameters.yaml"),
         ))
     params_dict.update(moveit_controllers)
@@ -136,27 +136,21 @@ def generate_launch_description():
         }
     )
 
-    ar_moveit_test_node = Node(
-        package="ar_testing",
-        executable="ar_moveit_test",
+    ar_whisper_moveit_node = Node(
+        package="ar_whisper",
+        executable="ar_whisper_moveit",
         name="moveit_py",
         output="screen",
         parameters=[params_dict],
     )
 
-    ar_moveit_launch = PythonLaunchDescriptionSource([
-        os.path.join(get_package_share_directory("ar_moveit_config"), "launch",
-                     "ar_moveit.launch.py")
-    ])
-    ar_moveit_args = {
-        "include_gripper": "True",
-        "rviz_config_file": "moveit_with_camera.rviz",
-        "use_sim_time": use_sim_time
-    }.items()
-    ar_moveit = IncludeLaunchDescription(ar_moveit_launch,
-                                         launch_arguments=ar_moveit_args)
+    ar_whisper_commander_node = Node(
+        package="ar_whisper",
+        executable="ar_whisper_commander",
+    )
 
+    
     return LaunchDescription([
-      ar_moveit_test_node,
-      #ar_moveit
+      ar_whisper_moveit_node,
+      ar_whisper_commander_node
     ])
