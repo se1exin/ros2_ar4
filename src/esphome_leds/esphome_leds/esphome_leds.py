@@ -6,7 +6,7 @@ from std_msgs.msg import String
 from sensor_msgs.msg import JointState
 
 
-class MinimalSubscriber(Node):
+class ESPHomeLEDS(Node):
     base_url = "http://10.1.1.74/"
     def __init__(self):
         super().__init__('minimal_subscriber')
@@ -35,7 +35,8 @@ class MinimalSubscriber(Node):
         found_change = False
         for index, position in enumerate(msg.position):
 
-            if self.last_state.position[index] != position:
+            if len(self.last_state.position) > index and \
+                abs(self.last_state.position[index] - position) > 0.001:
                 found_change = True
 
         if found_change and not self.is_moving:
@@ -58,8 +59,10 @@ class MinimalSubscriber(Node):
             #url += '/turn_on?effect=Rainbow'
         else:
             url += '/turn_off'
-
-        x = requests.post(url)
+        try:
+            x = requests.post(url)
+        except:
+            self.get_logger().error("Failed to communicate with ESP lights harware")
 
     def change_j5_led_state(self, state=True):
         url = self.base_url + 'light/robot_arm_ws2812_j5'
@@ -69,19 +72,23 @@ class MinimalSubscriber(Node):
         else:
             url += '/turn_off'
 
-        x = requests.post(url)
+        try:
+            x = requests.post(url)
+        except:
+            self.get_logger().error("Failed to communicate with ESP lights harware")
 
 def main(args=None):
     rclpy.init(args=args)
 
-    minimal_subscriber = MinimalSubscriber()
+    node = ESPHomeLEDS()
 
-    rclpy.spin(minimal_subscriber)
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.change_j2_led_state(False)
+        node.change_j5_led_state(False)
 
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
-    minimal_subscriber.destroy_node()
+    node.destroy_node()
     rclpy.shutdown()
 
 
