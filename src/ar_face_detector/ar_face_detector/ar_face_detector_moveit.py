@@ -69,7 +69,7 @@ class ArFaceDetectorMoveIt(Node):
 
         x_change = (0.5 - face_x) / 2
         z_change = (0.5 - face_y) / 2
-        y_change = (0.25 - face_z)
+        y_change = (0.3 - face_z) * 1.5
 
         if face_x <= 0.45 or face_x >= 0.55:
           pose.position.x += x_change
@@ -77,8 +77,9 @@ class ArFaceDetectorMoveIt(Node):
         if face_y <= 0.45 or face_y >= 0.55:
           pose.position.z += z_change
         
-        if face_z < 0.24 or face_z > 0.26:
-          pose.position.y -= y_change
+        # if face_z < 0.24 or face_z > 0.26:
+        #   pose.position.y -= y_change
+        pose.position.y -= y_change
 
         
         self.logger.info(f"Face point Move To: {face_z} -> {y_change}")
