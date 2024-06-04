@@ -9,7 +9,7 @@ from sensor_msgs.msg import JointState
 class ESPHomeLEDS(Node):
     base_url = "http://10.1.1.74/"
     def __init__(self):
-        super().__init__('minimal_subscriber')
+        super().__init__('esphome_leds')
 
         self.get_logger().info('Starting subscriber...')
         self.change_j2_led_state(state=False)
@@ -41,17 +41,31 @@ class ESPHomeLEDS(Node):
 
         if found_change and not self.is_moving:
             self.get_logger().info("ROBOT MOVING!")
+            self.change_j1_led_state(state=True)
             self.change_j2_led_state(state=True)
             self.change_j5_led_state(state=True)
         elif not found_change and self.is_moving:
             self.get_logger().info("ROBOT STOPPED!")
+            self.change_j1_led_state(state=False)
             self.change_j2_led_state(state=False)
             self.change_j5_led_state(state=False)
         
         self.is_moving = found_change
 
         self.last_state = msg
-    
+
+    def change_j1_led_state(self, state=True):
+        url = self.base_url + 'light/robot_arm_ws2812_j1'
+        if state:
+            url += '/turn_on?effect=green_wipe'
+            #url += '/turn_on?effect=Rainbow'
+        else:
+            url += '/turn_off'
+        try:
+            x = requests.post(url)
+        except:
+            self.get_logger().error("Failed to communicate with ESP lights harware")
+
     def change_j2_led_state(self, state=True):
         url = self.base_url + 'light/robot_arm_ws2812_j2'
         if state:
@@ -68,7 +82,7 @@ class ESPHomeLEDS(Node):
         url = self.base_url + 'light/robot_arm_ws2812_j5'
         if state:
             #url += '/turn_on?effect=red_wipe'
-            url += '/turn_on?effect=Rainbow'
+            url += '/turn_on?effect=blue_wipe'
         else:
             url += '/turn_off'
 
