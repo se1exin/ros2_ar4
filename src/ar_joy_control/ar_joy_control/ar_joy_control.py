@@ -92,12 +92,12 @@ class ArJoyControl(Node):
 
         if abs(lstick_x) > 0.05:
             self.goal_positions[0] = self.actual_positions[0]
-            self.goal_positions[0] -= (lstick_x / 5)
+            self.goal_positions[0] -= (lstick_x / 2)
             should_move = True
 
         if abs(lstick_y) > 0.05:
             self.goal_positions[1] = self.actual_positions[1]
-            self.goal_positions[1] -= (lstick_y / 5)
+            self.goal_positions[1] -= (lstick_y / 2)
             should_move = True
         
         if abs(rstick_y) > 0.05:
