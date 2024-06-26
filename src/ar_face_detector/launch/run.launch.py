@@ -24,7 +24,7 @@ def load_yaml(package_name, file_name):
 
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    use_sim_time = LaunchConfiguration("use_sim_time", default="false")
 
     declared_arguments = []
     declared_arguments.append(
@@ -105,7 +105,7 @@ def generate_launch_description():
         "trajectory_execution": {
             "allowed_execution_duration_scaling": 1.2,
             "allowed_goal_duration_margin": 0.5,
-            "allowed_start_tolerance": 0.9,
+            "allowed_start_tolerance": 5.0,
         }
     }
 

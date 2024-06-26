@@ -16,6 +16,7 @@ from moveit.planning import MoveItPy, MultiPipelinePlanRequestParameters
 from moveit.core.robot_state import RobotState
 from tf2_geometry_msgs import do_transform_pose
 
+BUFFER_SIZE = 30
 
 class ArFaceDetectorMoveIt(Node):
 
@@ -43,6 +44,8 @@ class ArFaceDetectorMoveIt(Node):
         self.move_to_configuration("home")
         self.is_running_command = False
 
+        self.tracked_hand_buffer = []
+
     def listener_callback(self, msg: Point):
         
         # self._logger.info(f"GOT MSG {msg}")
@@ -52,9 +55,41 @@ class ArFaceDetectorMoveIt(Node):
         
         self.is_running_command = True
 
-        self.handle_face_point(msg)
+        if len(self.tracked_hand_buffer) >= BUFFER_SIZE:
+            self.tracked_hand_buffer.pop(0)
+            
+        self.tracked_hand_buffer.append(msg)
+
+        # Average the movement in the buffer, if it is stable then we try to move to it
+        x_total = 0
+        y_total = 0
+        z_total = 0
+        for val in self.tracked_hand_buffer:
+            x_total += val.transform.translation.x
+            y_total += val.transform.translation.y
+            z_total += val.transform.translation.z
+
+        x_avg = x_total / len(self.tracked_hand_buffer)
+        y_avg = y_total / len(self.tracked_hand_buffer)
+        z_avg = z_total / len(self.tracked_hand_buffer)
+
+        VARIANCE = 0.005
+
+        self.get_logger().info(f"{x_avg} -> {msg.transform.translation.x}")
+        if len(self.tracked_hand_buffer) >= BUFFER_SIZE \
+            and abs(x_avg - msg.transform.translation.x) < VARIANCE \
+            and abs(y_avg - msg.transform.translation.y) < VARIANCE\
+            and abs(z_avg - msg.transform.translation.z) < VARIANCE:
+            self.handle_face_point(msg)
 
         self.is_running_command = False
+    
+    def buffer_avg(self, buffer):
+        total = 0
+        for val in buffer:
+            total += val
+        
+        return total / len(buffer)
 
     def handle_face_point(self, transform: TransformStamped):
 
@@ -64,9 +99,6 @@ class ArFaceDetectorMoveIt(Node):
             
             new_transform.child_frame_id = "tracked_hand_2"
             self.tf_static_broadcaster.sendTransform(new_transform)
-            
-            print(new_transform)
-        
         
             self.arm.set_start_state_to_current_state()
             pose = self.last_pose

@@ -8,8 +8,6 @@ import time
 from geometry_msgs.msg import Point
 
 # moveit python library
-import tf2_ros
-import transforms3d
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
 from moveit.planning import MoveItPy, MultiPipelinePlanRequestParameters
@@ -34,7 +32,7 @@ class ArFaceDetectorMoveIt(Node):
         self.last_pose = None
         self.is_running_command = True
 
-        self.move_to_configuration("home")
+        self.move_to_configuration("facing_left")
         self.is_running_command = False
 
     def listener_callback(self, msg: Point):

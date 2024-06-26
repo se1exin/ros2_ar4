@@ -147,8 +147,8 @@ def generate_launch_description():
         # "depth_module.infra_profile": "640x480x15",
         "clip_distance": "1.5",
         # "pointcloud.pointcloud_qos": "SENSOR_DATA",
-        "pointcloud.enable": "true",
-        "pointcloud.allow_no_texture_points": "false",
+        # "pointcloud.enable": "true",
+        # "pointcloud.allow_no_texture_points": "false",
         # "pointcloud.ordered_pc": "true",
         # "pointcloud.stream_filter": "1"
     }

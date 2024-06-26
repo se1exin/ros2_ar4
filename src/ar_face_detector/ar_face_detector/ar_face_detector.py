@@ -44,6 +44,7 @@ class ArFaceDetector(Node):
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 if results.detections:
                     for detection in results.detections:
+                        # self.get_logger().info(f"{detection}")
                         self.handle_detection(detection)
                         mp_drawing.draw_detection(image, detection)
                     # Flip the image horizontally for a selfie-view display.
@@ -93,7 +94,7 @@ class ArFaceDetector(Node):
 
 def main():
     rclpy.init()
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(-1)
     node = ArFaceDetector(cap)
     try:
         rclpy.spin(node)

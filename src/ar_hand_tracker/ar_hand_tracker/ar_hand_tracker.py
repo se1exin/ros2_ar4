@@ -50,13 +50,13 @@ class ArHandTracker(Node):
 
         self.image_sub = self.create_subscription(
             Image,
-            "/camera/color/image_raw",
+            "/camera/camera/color/image_raw",
             self.image_callback, 10
         )
 
         self.depth_image_sub = self.create_subscription(
             Image,
-            "/camera/aligned_depth_to_color/image_raw",
+            "/camera/camera/aligned_depth_to_color/image_raw",
             self.depth_image_callback, 10
         )
     
@@ -93,7 +93,7 @@ class ArHandTracker(Node):
         results = self.tracker.process(image)
 
         # Draw the face detection annotations on the image.
-        image.flags.writeable = False
+        image.flags.writeable = True
         
         if results.multi_hand_landmarks:
             # Only track one hand
@@ -162,6 +162,10 @@ class ArHandTracker(Node):
             # t.transform.rotation.y = quat[1]
             # t.transform.rotation.z = quat[2]
             # t.transform.rotation.w = quat[3]
+
+            t.transform.rotation.x = math.radians(15)
+            t.transform.rotation.z = math.radians(60)
+            t.transform.rotation.y = math.radians(27.0 / 2)
 
             self.tf_static_broadcaster.sendTransform(t)
             self.tf_publisher.publish(t)

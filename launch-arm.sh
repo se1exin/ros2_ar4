@@ -1,1 +1,1 @@
-ros2 launch ar_hardware_interface ar_hardware.launch.py calibrate:=True
+ros2 launch ar_hardware_interface ar_hardware.launch.py calibrate:=False
