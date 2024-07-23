@@ -13,7 +13,8 @@ planning_pipelines:
 plan_request_params:
   planning_attempts: 3
   planning_pipeline: ompl
-  planner_id: "TRRTkConfigDefault"
+  #planner_id: "TRRTkConfigDefault"
+  planner_id: "RRTConnectkConfigDefault"
   planning_time: 3.0
   max_velocity_scaling_factor: 1.0
   max_acceleration_scaling_factor: 1.0

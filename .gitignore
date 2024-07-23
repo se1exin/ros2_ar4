@@ -55,3 +55,6 @@ log
 install
 *.wav
 .vscode
+
+yolo*.pt
+FastSAM-s.pt

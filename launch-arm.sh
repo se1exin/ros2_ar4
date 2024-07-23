@@ -1,1 +1,1 @@
-ros2 launch ar_hardware_interface ar_hardware.launch.py calibrate:=False
+ros2 launch ar_hardware_interface ar_hardware.launch.py include_gripper:=True calibrate:=True
