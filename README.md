@@ -12,7 +12,7 @@ Attach a camera the end of the arm and have it follow you around to keep your fa
 
 Watch on YouTube Shorts:
 
-[![Watch on YouTube](https://img.youtube.com/vi/Apb1FqWfFz0/0.jpg)](https://youtube.com/shorts/Apb1FqWfFz0)
+[![Watch on YouTube](https://img.youtube.com/vi/lzvzFQv-Cx0/0.jpg)](https://www.youtube.com/shorts/lzvzFQv-Cx0)
 
 
 #### `ar_joy_control`
