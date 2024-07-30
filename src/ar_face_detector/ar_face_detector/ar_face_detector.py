@@ -10,7 +10,7 @@ import mediapipe as mp
 mp_face_detection = mp.solutions.face_detection
 mp_drawing = mp.solutions.drawing_utils
 
-BUFFER_SIZE = 5
+BUFFER_SIZE = 3
 class ArFaceDetector(Node):
     def __init__(self, cap):
         super().__init__("ar_face_detector")
@@ -44,13 +44,16 @@ class ArFaceDetector(Node):
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 if results.detections:
                     for detection in results.detections:
-                        # self.get_logger().info(f"{detection}")
+                        if detection.score[0] < 0.65:
+                            continue
                         self.handle_detection(detection)
                         mp_drawing.draw_detection(image, detection)
-                    # Flip the image horizontally for a selfie-view display.
-                    cv2.imshow('MediaPipe Face Detection', cv2.flip(image, 1))
-                    if cv2.waitKey(5) & 0xFF == 27:
-                        break
+                # Flip the image horizontally for a selfie-view display.
+                cv2.namedWindow('img', cv2.WND_PROP_FULLSCREEN)
+                cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+                cv2.imshow('img', cv2.flip(image, 1))
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
 
     def handle_detection(self, detection):
         loc_data = detection.location_data.relative_bounding_box

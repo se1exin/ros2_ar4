@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             'ar_face_detector = ar_face_detector.ar_face_detector:main',
-            'ar_face_detector_moveit = ar_face_detector.ar_face_detector_moveit:main'
+            'ar_face_detector_moveit = ar_face_detector.ar_face_detector_moveit:main',
+            'ar_face_detector_state_publisher = ar_face_detector.ar_face_detector_state_publisher:main'
         ],
     },
 )
