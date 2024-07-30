@@ -9,7 +9,6 @@ from geometry_msgs.msg import Point
 
 from trajectory_msgs.msg import JointTrajectory , JointTrajectoryPoint
 from sensor_msgs.msg import JointState
-from simple_pid import PID
 
 JOINT_NAMES = ['joint_1','joint_2','joint_3','joint_4','joint_5','joint_6']
 
