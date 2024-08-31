@@ -26,7 +26,9 @@ setup(
         'console_scripts': [
             'ar_face_detector = ar_face_detector.ar_face_detector:main',
             'ar_face_detector_moveit = ar_face_detector.ar_face_detector_moveit:main',
-            'ar_face_detector_state_publisher = ar_face_detector.ar_face_detector_state_publisher:main'
+            'ar_face_detector_state_publisher = ar_face_detector.ar_face_detector_state_publisher:main',
+            'ar_nerf_firer = ar_face_detector.ar_nerf_firer:main',
+            'esphome_leds = ar_face_detector.esphome_leds:main'
         ],
     },
 )

@@ -9,8 +9,11 @@ from geometry_msgs.msg import Point
 
 from trajectory_msgs.msg import JointTrajectory , JointTrajectoryPoint
 from sensor_msgs.msg import JointState
+import threading
 
 JOINT_NAMES = ['joint_1','joint_2','joint_3','joint_4','joint_5','joint_6']
+MIN_J1 = -1.0
+MAX_J1 = 0.5
 
 class ArFaceDetectorStatePublisher(Node):
 
@@ -38,13 +41,20 @@ class ArFaceDetectorStatePublisher(Node):
         self.joint_positions = {}
 
         self.at_goal = True
+
+        self.sweep_start_timer = None
+        self.sweep_direction = 1  # -1 is backwards, 1 is forwards
+        self.face_detected = False
         
         for joint in JOINT_NAMES:
             self.goal_positions[joint] = 0.0
             self.joint_positions[joint] = 0.0
+        
+        self.goal_positions['joint_5'] = -0.2  # Offset for bad calibration=
 
         self.move_to_goal_positions()
-        time.sleep(5)
+        time.sleep(1)
+        self.start_sweep_routine()
 
     def state_listener_callback(self, msg):
         # print(f"state {msg}")
@@ -60,8 +70,32 @@ class ArFaceDetectorStatePublisher(Node):
         self.joint_positions = positions_mapped
 
         self.at_goal = self.check_goal_reached()
+        if self.at_goal and not self.face_detected:
+            self.start_sweep_routine()
+
+    def start_sweep_routine(self):
+        self.face_detected = False
+
+        # Sweep the arm back and forth like a searching turret
+        if self.joint_positions['joint_1'] >= MAX_J1:
+            self.sweep_direction = -1
+        elif self.joint_positions['joint_1'] <= MIN_J1:
+            self.sweep_direction = 1
+        
+        self.goal_positions['joint_1'] += self.sweep_direction * 0.003
+        self.goal_positions['joint_2'] = 0.0
+        self.goal_positions['joint_3'] = 0.0
+        self.move_to_goal_positions()
+
 
     def point_listener_callback(self, point: Point):
+        self.face_detected = True
+        if self.sweep_start_timer is not None:
+            self.sweep_start_timer.cancel()
+        self.sweep_start_timer = threading.Timer(0.5, self.start_sweep_routine)
+        self.sweep_start_timer.start()
+
+
         if not self.at_goal:
             self.logger.info("Not at goal")
             return
@@ -71,8 +105,10 @@ class ArFaceDetectorStatePublisher(Node):
         face_y = point.y
         face_z = point.z  # Width of face as percentage
 
-        target_x_pos = 0.35  # 0.5 is center of frame
-        target_y_pos = 0.35
+        # target_x_pos = 0.35  # 0.5 is center of frame
+        # target_y_pos = 0.35
+        target_x_pos = 0.5  # 0.5 is center of frame
+        target_y_pos = 0.5
         target_face_size = 0.2  # Percentage of frame size
         
         dead_zone = 0.08
@@ -126,7 +162,7 @@ class ArFaceDetectorStatePublisher(Node):
         self.trajectory_publisher.publish(trajectory_msg)
 
     def check_goal_reached(self):
-        DIFF_MAX = 0.5
+        DIFF_MAX = 0.3
         for joint in JOINT_NAMES:
             if not joint in self.joint_positions:
                 return True

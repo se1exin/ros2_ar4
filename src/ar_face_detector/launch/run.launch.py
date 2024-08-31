@@ -151,13 +151,20 @@ def generate_launch_description():
     )
 
     esphome_leds_node = Node(
-        package="esphome_leds",
+        package="ar_face_detector",
         executable="esphome_leds",
+        output="screen",
+    )
+
+    nerf_trigger_node = Node(
+        package="ar_face_detector",
+        executable="ar_nerf_firer",
         output="screen",
     )
     
     return LaunchDescription([
-      moveit_node,
+      #moveit_node,
       esphome_leds_node,
-      # commander_node
+      nerf_trigger_node,
+      commander_node
     ])

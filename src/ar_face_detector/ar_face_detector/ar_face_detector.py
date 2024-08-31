@@ -44,7 +44,7 @@ class ArFaceDetector(Node):
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 if results.detections:
                     for detection in results.detections:
-                        if detection.score[0] < 0.65:
+                        if detection.score[0] < 0.75:
                             continue
                         self.handle_detection(detection)
                         mp_drawing.draw_detection(image, detection)
