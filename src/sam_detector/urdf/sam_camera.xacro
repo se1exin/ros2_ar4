@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="sam_camera">
+  <link name="world"/>
+  <joint name="camera_jump_joint" type="fixed">
+    <parent link="world" />
+    <child link="camera_jump_link" />
+    <origin xyz="-0.495 -0.455 0.77" rpy="${0 * pi / 180} ${55 * pi / 180} ${0 * pi / 180}" />
+  </joint>
+  <link name="camera_jump_link">
+    <visual>
+      <geometry>
+        <box size="0.010 0.03 0.03" />
+      </geometry>
+      <color rgba="1 0 0 1" />
+    </visual>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="camera_jump_link" />
+    <child link="camera_link" />
+    <origin xyz="0 0 0" rpy="${0 * pi / 180} ${0 * pi / 180} ${0 * pi / 180}" />
+  </joint>
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="0.010 0.03 0.03" />
+      </geometry>
+      <color rgba="1 1 0 1" />
+    </visual>
+  </link>
+
+
+  <joint name="camera_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-90 * pi / 180}" />
+    <parent link="camera_link" />
+    <child link="camera_link_optical" />
+  </joint>
+
+  <link name="camera_link_optical"></link>
+
+  <gazebo reference="camera_link">
+    <material>Gazebo/Red</material>
+    <sensor name="ar_camera" type="camera">
+      <pose> 0 0 0 0 0 0 </pose>
+      <visualize>true</visualize>
+      <update_rate>10</update_rate>
+      <camera>
+        <camera_info_topic>ar_camera/camera_info</camera_info_topic>
+        <horizontal_fov>1.089</horizontal_fov>
+        <image>
+          <format>R8G8B8</format>
+          <width>640</width>
+          <height>480</height>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>8.0</far>
+        </clip>
+      </camera>
+      <topic>ar_camera/image_raw</topic>
+      <gz_frame_id>camera_link_optical</gz_frame_id>
+    </sensor>
+  </gazebo>
+</robot>

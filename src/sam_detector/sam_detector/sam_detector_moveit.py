@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # generic ros libraries
+import threading
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time, Duration
@@ -8,15 +9,12 @@ import time
 from geometry_msgs.msg import Point, TransformStamped
 
 # moveit python library
-import tf2_ros
-from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from tf2_ros import Buffer, TransformListener, TransformBroadcaster
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
 from moveit.planning import MoveItPy, MultiPipelinePlanRequestParameters
 from moveit.core.robot_state import RobotState
 from tf2_geometry_msgs import do_transform_pose
-
-BUFFER_SIZE = 1
 
 class SAMDetectorMoveIt(Node):
 
@@ -24,77 +22,66 @@ class SAMDetectorMoveIt(Node):
         super().__init__("sam_detector_moveit")
 
         self.logger = self.get_logger()
+
         self.moveit = moveit
         self.arm = self.moveit.get_planning_component("ar_manipulator")
         self.gripper = self.moveit.get_planning_component("ar_gripper")
 
-        self.tf_static_broadcaster = StaticTransformBroadcaster(self)
-
-        self.subscription = self.create_subscription(
-            TransformStamped,
-            "/sam_detector/tf",
-            self.listener_callback,
-            1)
-        
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-        
         self.is_running_command = True
 
         self.move_to_configuration("home")
-        #time.sleep(2.0)
+        time.sleep(1.0)
         self.open_gripper()
-        #time.sleep(2.0)
+        time.sleep(1.0)
         self.close_gripper()
+        time.sleep(1.0)
         self.is_running_command = False
 
-        self.transform_buffer = []
-        
 
-    def listener_callback(self, msg: Point):
-        
-        # self._logger.info(f"GOT MSG {msg}")
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.tf_broadcaster = TransformBroadcaster(self)
+
+        self.loop_timer = self.create_timer(1.0, self.loop_timer_callback)
+    
+
+    def loop_timer_callback(self):
         if self.is_running_command:
             self._logger.info(f"Already running command.")
             return
         
         self.is_running_command = True
 
-        if len(self.transform_buffer) >= BUFFER_SIZE:
-            self.transform_buffer.pop(0)
-            
-        self.transform_buffer.append(msg)
+        try:
+            target_object_transform = self.tf_buffer.lookup_transform(
+                target_frame="base_link",
+                source_frame="gripper_target_object",
+                time=Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+            # Check transform age
+            now = self.get_clock().now().to_msg()
+            t = target_object_transform.header.stamp
+            age = (now.sec + now.nanosec * 1e-9) - (t.sec + t.nanosec * 1e-9)
+            if age > 5.0:
+                self.get_logger().warn(f"Transform is too old: {age:.2f} seconds. Skipping.")
+                self.is_running_command = False
+                return
+            target_object_transform.child_frame_id = "gripper_target_object_moveit"
+            target_object_transform.header.stamp = self.get_clock().now().to_msg()
+            self.tf_broadcaster.sendTransform(target_object_transform)
 
-        # Average the movement in the buffer, if it is stable then we try to move to it
-        x_total = 0
-        y_total = 0
-        z_total = 0
-        for val in self.transform_buffer:
-            x_total += val.transform.translation.x
-            y_total += val.transform.translation.y
-            z_total += val.transform.translation.z
-
-        x_avg = x_total / len(self.transform_buffer)
-        y_avg = y_total / len(self.transform_buffer)
-        z_avg = z_total / len(self.transform_buffer)
-
-        VARIANCE = 0.005
-
-        self.get_logger().info(f"{x_avg} -> {msg.transform.translation.x}")
-        if len(self.transform_buffer) >= BUFFER_SIZE \
-            and abs(x_avg - msg.transform.translation.x) < VARIANCE \
-            and abs(y_avg - msg.transform.translation.y) < VARIANCE\
-            and abs(z_avg - msg.transform.translation.z) < VARIANCE:
-            self.pick_and_place()
-
-        self.is_running_command = False
-    
-    def buffer_avg(self, buffer):
-        total = 0
-        for val in buffer:
-            total += val
+            time.sleep(0.2)  # Give some time for the transform to propagate
+        except Exception as e:
+            self.get_logger().error(f"Transform lookup failed in moveit node: {e}")
+            self.is_running_command = False
+            return
         
-        return total / len(buffer)
+        # Run in a separate thread to not block the timer callback
+        # Also because moveit seems to mess with the transform buffer
+        threading.Thread(target=self.pick_and_place, args=(target_object_transform,)).start()
+        # self.pick_and_place(target_object_transform)
+
 
     def generate_pose_goal(self, pose: PoseStamped):
         pose_goal = PoseStamped()
@@ -102,72 +89,54 @@ class SAMDetectorMoveIt(Node):
         pose_goal.pose = pose
         return pose_goal
 
-    def pick_and_place(self):
-        GRIPPER_LENGTH = 0.06  # The robot model calculates at the base of the gipper, we need to offset to the gripper jaws
+    def pick_and_place(self, target_object_transform):
+        GRIPPER_LENGTH = 0.05  # The robot model calculates at the base of the gipper, we need to offset to the gripper jaws
         try:
-            target_object_transform = self.tf_buffer.lookup_transform("base_link", "gripper_target_object",
-                                                    Time())
-            
-            bowl_transform = self.tf_buffer.lookup_transform("base_link", "detected_bowl",
-                                                    Time())
-            
-            target_object_transform.child_frame_id = "gripper_target_object_moveit"
-            self.tf_static_broadcaster.sendTransform(target_object_transform)
-        
             self.arm.set_start_state_to_current_state()
 
             target_object_pose = Pose()
             target_object_pose.position.x = target_object_transform.transform.translation.x
-            target_object_pose.position.y = target_object_transform.transform.translation.y
-            target_object_pose.position.z = target_object_transform.transform.translation.z + 0.2 # Initial position ABOVE the object
+            target_object_pose.position.y = target_object_transform.transform.translation.y + GRIPPER_LENGTH + 0.08
+            target_object_pose.position.z = target_object_transform.transform.translation.z
 
             target_object_pose.orientation.w = target_object_transform.transform.rotation.w
             target_object_pose.orientation.x = target_object_transform.transform.rotation.x
             target_object_pose.orientation.y = target_object_transform.transform.rotation.y
             target_object_pose.orientation.z = target_object_transform.transform.rotation.z
 
-            
-            detected_bowl_pose = Pose()
-            detected_bowl_pose.position.x = bowl_transform.transform.translation.x
-            detected_bowl_pose.position.y = bowl_transform.transform.translation.y
-            detected_bowl_pose.position.z = bowl_transform.transform.translation.z + 0.25  # Some extra clearance above the bowl
-            
-            detected_bowl_pose.orientation.w = bowl_transform.transform.rotation.w
-            detected_bowl_pose.orientation.x = bowl_transform.transform.rotation.x
-            detected_bowl_pose.orientation.y = bowl_transform.transform.rotation.y
-            detected_bowl_pose.orientation.z = bowl_transform.transform.rotation.z
-            
+            if target_object_pose.position.z <= 0.05:
+                target_object_pose.position.z = 0.05
 
             self.logger.info("Move above object")
             self.arm.set_start_state_to_current_state()
             if self.move_gripper_to_pose_goal(self.generate_pose_goal(target_object_pose)):
+              time.sleep(1.0)
               self.open_gripper()
 
-              target_object_pose.position.z = target_object_transform.transform.translation.z + GRIPPER_LENGTH
+              target_object_pose.position.y = target_object_transform.transform.translation.y + GRIPPER_LENGTH
               self.logger.info("Move around object")
               self.arm.set_start_state_to_current_state()
               if self.move_gripper_to_pose_goal(self.generate_pose_goal(target_object_pose)):
               
                 time.sleep(0.2)
                 self.close_gripper()
-                time.sleep(0.2)
-                self.logger.info("Move away from object")
+                time.sleep(1.0)
+                # self.logger.info("Move away from object")
                 
-                self.arm.set_start_state_to_current_state()
-                target_object_pose.position.z = target_object_transform.transform.translation.z + 0.25
-                if self.move_gripper_to_pose_goal(self.generate_pose_goal(target_object_pose)):
-                  
-                  self.logger.info("Move to bowl")
-                  self.arm.set_start_state_to_current_state()
-                  if self.move_gripper_to_pose_goal(self.generate_pose_goal(detected_bowl_pose)):
-                    self.open_gripper()
-
-                    time.sleep(0.2)
-                    self.close_gripper()
+                # self.arm.set_start_state_to_current_state()
+                # target_object_pose.position.x = target_object_transform.transform.translation.x + 0.25
+                # if self.move_gripper_to_pose_goal(self.generate_pose_goal(target_object_pose)):
+                #     pass
 
             self.move_to_configuration("home")
+            time.sleep(0.5)
+            self.open_gripper()
+            time.sleep(3)
+            self.is_running_command = False
+
         except Exception as ex:
-            print(ex)
+            self.get_logger().error(f"{ex}")
+            self.is_running_command = False
 
     def move_gripper_to_pose_goal(self, pose_goal: PoseStamped):
         self.arm.set_goal_state(pose_stamped_msg=pose_goal, pose_link="link_6")
@@ -184,7 +153,7 @@ class SAMDetectorMoveIt(Node):
     def get_current_pose(self):
         robot_model = self.moveit.get_robot_model()
         robot_state = RobotState(robot_model)
-        # robot_state.update()  # Seems to make things worse..
+        robot_state.update()  # Seems to make things worse..
         return robot_state.get_pose("link_6")
 
     def plan_and_execute(self, planning_component):

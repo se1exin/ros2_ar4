@@ -37,11 +37,11 @@ Watch on YouTube Shorts:
 [![Watch on YouTube](https://img.youtube.com/vi/19Ep5-LoDiw/0.jpg)](https://youtube.com/shorts/19Ep5-LoDiw)
 
 ## Setup
-Clone https://github.com/se1exin/ar4_ros_driver to `lib` folder.
+Clone https://github.com/ycheng517/ar4_ros_driver to `lib` folder.
 
 ```
 mkdir lib
-git clone git@github.com:se1exin/ar4_ros_driver.git lib/ar4_ros_driver
+git clone git@github.com:ycheng517/ar4_ros_driver.git lib/ar4_ros_driver
 ```
 
 Run colcon build, but ignore the ar_hand_eye directory

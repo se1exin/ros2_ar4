@@ -14,6 +14,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*'))),
+        (os.path.join('share', package_name, 'urdf'), glob(os.path.join('urdf', '*'))),
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
     ],
     install_requires=['setuptools'],
@@ -26,7 +27,9 @@ setup(
     entry_points={
         'console_scripts': [
             'sam_detector = sam_detector.sam_detector:main',
-            'sam_detector_moveit = sam_detector.sam_detector_moveit:main'
+            'hand_object_detector = sam_detector.hand_object_detector:main',
+            'transform_republisher = sam_detector.transform_republisher:main',
+            'sam_detector_moveit = sam_detector.sam_detector_moveit:main',
         ],
     },
 )

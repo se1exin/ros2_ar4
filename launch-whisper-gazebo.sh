@@ -1,1 +1,0 @@
-ros2 launch ar_whisper ar_whisper.launch.py use_sim_time:=True include_gripper:=True

@@ -4,6 +4,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterFile
 
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
@@ -24,24 +25,28 @@ def load_yaml(package_name, file_name):
 
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration("use_sim_time", default="False")
+    tf_prefix = LaunchConfiguration("tf_prefix")
 
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_sim_time",
-            default_value="False",
-            description="Make MoveIt use simulation time. This is needed "+\
-                "for trajectory planing in simulation.",
+            "tf_prefix",
+            default_value="",
+            description="Prefix for AR4 tf_tree",
         ))
 
     robot_description_content = Command([
         PathJoinSubstitution([FindExecutable(name="xacro")]),
         " ",
         PathJoinSubstitution(
-            [FindPackageShare("ar_description"), "urdf", "ar.urdf.xacro"]),
+            [FindPackageShare("annin_ar4_description"), "urdf", "ar.urdf.xacro"]),
         " ",
         "name:=ar",
+        " ",
+        "ar_model:=mk2",
+        " ",
+        "tf_prefix:=",
+        tf_prefix,
         " ",
         "include_gripper:=",
         "True",
@@ -52,14 +57,22 @@ def generate_launch_description():
     robot_description_semantic_content = Command([
         PathJoinSubstitution([FindExecutable(name="xacro")]),
         " ",
-        PathJoinSubstitution(
-            [FindPackageShare("ar_moveit_config"), "srdf", "ar.srdf.xacro"]),
+        PathJoinSubstitution([
+            FindPackageShare("annin_ar4_moveit_config"), "srdf",
+            "ar.srdf.xacro"
+        ]),
         " ",
-        "name:=ar",
+        "name:=mk2",
+        " ",
+        "ar_model:=mk2",
+        " ",
+        "tf_prefix:=",
+        tf_prefix,
         " ",
         "include_gripper:=",
         "True",
     ])
+    
     robot_description_semantic = {
         "robot_description_semantic": robot_description_semantic_content
     }
@@ -67,46 +80,59 @@ def generate_launch_description():
     robot_description_kinematics = {
         "robot_description_kinematics":
         load_yaml(
-            "ar_moveit_config",
+            "annin_ar4_moveit_config",
             os.path.join("config", "kinematics.yaml"),
         )
     }
 
-    robot_description_planning = {
-        "robot_description_planning":
+    robot_description_kinematics = {
+        "robot_description_kinematics":
         load_yaml(
-            "ar_hand_tracker",
-            os.path.join("config", "joint_limits.yaml"),
+            "annin_ar4_moveit_config",
+            os.path.join("config", "kinematics.yaml"),
         )
     }
 
+    joint_limits = ParameterFile(
+        PathJoinSubstitution([
+            FindPackageShare("sam_detector"),
+            "config/joint_limits.yaml"
+        ]),
+        allow_substs=True,
+    )
+
     # Planning Configuration
-    ompl_planning_pipeline_config = {
-        "ompl": {
-            "planning_plugin": "ompl_interface/OMPLPlanner",
-        }
-    }
-    ompl_planning_yaml = load_yaml("ar_moveit_config",
+    ompl_planning_yaml = load_yaml("annin_ar4_moveit_config",
                                    "config/ompl_planning.yaml")
-    ompl_planning_pipeline_config["ompl"].update(ompl_planning_yaml)
+    pilz_planning_yaml = load_yaml("annin_ar4_moveit_config",
+                                   "config/pilz_planning.yaml")
+    planning_pipeline_config = {
+        "default_planning_pipeline": "ompl",
+        "planning_pipelines": ["ompl", "pilz"],
+        "ompl": ompl_planning_yaml,
+        "pilz": pilz_planning_yaml,
+    }
 
     # Trajectory Execution Configuration
-    controllers_yaml = load_yaml("ar_moveit_config", "config/controllers.yaml")
-
-    moveit_controllers = {
-        "moveit_simple_controller_manager":
-        controllers_yaml,
+    moveit_controller_manager = {
         "moveit_controller_manager":
         "moveit_simple_controller_manager/MoveItSimpleControllerManager",
     }
 
+    # Trajectory Execution Configuration
+    moveit_controllers = ParameterFile(
+        PathJoinSubstitution([
+            FindPackageShare("sam_detector"),
+            "config/controllers.yaml"
+        ]),
+        allow_substs=True,
+    )
+
     trajectory_execution = {
         "moveit_manage_controllers": True,
-        "trajectory_execution": {
-            "allowed_execution_duration_scaling": 1.2,
-            "allowed_goal_duration_margin": 0.5,
-            "allowed_start_tolerance": 0.9,
-        }
+        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
+        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+        "trajectory_execution.allowed_start_tolerance": 0.01,
     }
 
     planning_scene_monitor_parameters = {
@@ -114,27 +140,10 @@ def generate_launch_description():
         "publish_geometry_updates": True,
         "publish_state_updates": True,
         "publish_transforms_updates": True,
+        # Added due to https://github.com/moveit/moveit2_tutorials/issues/528
+        "publish_robot_description_semantic": True,
     }
 
-    params_dict = {}
-    params_dict.update(robot_description)
-    params_dict.update(robot_description_semantic)
-    params_dict.update(robot_description_planning)
-    params_dict.update(robot_description_kinematics)
-    params_dict.update(ompl_planning_pipeline_config)
-    params_dict.update(
-        load_yaml(
-            "ar_hand_tracker",
-            os.path.join("config", "moveit_py_parameters.yaml"),
-        ))
-    params_dict.update(moveit_controllers)
-    params_dict.update(trajectory_execution)
-    params_dict.update(planning_scene_monitor_parameters)
-    params_dict.update(
-        {
-            "use_sim_time": use_sim_time
-        }
-    )
 
     realsense_args = {
         "initial_reset": "true",
@@ -158,7 +167,42 @@ def generate_launch_description():
         executable="sam_detector_moveit",
         name="moveit_py",
         output="screen",
-        parameters=[params_dict],
+        parameters=[
+            joint_limits,
+            robot_description,
+            robot_description_semantic,
+            robot_description_kinematics,
+            planning_pipeline_config,
+            trajectory_execution,
+            load_yaml(
+                "sam_detector",
+                os.path.join("config", "moveit_py_parameters.yaml"),
+            ),
+            moveit_controller_manager,
+            moveit_controllers,
+            planning_scene_monitor_parameters,
+            {
+                "use_sim_time": False,
+            }
+        ],
+    )
+    
+    camera_description_content = Command([
+        PathJoinSubstitution([FindExecutable(name="xacro")]),
+        " ",
+        PathJoinSubstitution([
+            FindPackageShare("sam_detector"), "urdf", "sam_camera.xacro"
+        ])
+    ])
+    camera_description = {"robot_description": camera_description_content}
+
+    camera_state_publisher = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="camera_state_publisher",
+        namespace="camera",
+        output="screen",
+        parameters=[camera_description]
     )
 
     realsense_node = IncludeLaunchDescription(
@@ -175,8 +219,9 @@ def generate_launch_description():
     )
 
     
-    return LaunchDescription([
+    return LaunchDescription(declared_arguments + [
       moveit_node,
+      camera_state_publisher,
       realsense_node,
       #tracker_node
     ])
